@@ -1,32 +1,15 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-// Types
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  avatar?: string;
-}
-
-// Store interface
-interface AuthState {
-  // User state
-  user: User | null;
-  isAuthenticated: boolean;
-  login: (user: User) => void;
-  logout: () => void;
-}
-
 // Create store
-export const useAuthStore = create<AuthState>()(
+export const useAuthStore = create(
   persist(
     (set) => ({
       // User state
       user: null,
       isAuthenticated: false,
 
-      login: (user: User) => {
+      login: (user) => {
         set({ user, isAuthenticated: true });
       },
 
