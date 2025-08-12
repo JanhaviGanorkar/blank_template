@@ -31,14 +31,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const isUserAuthenticated = isAuthenticated && hasValidToken;
 
   // Debug authentication status
-  console.log('🛡️ ProtectedRoute Check:', {
-    path: location.pathname,
-    requireAuth,
-    isAuthenticated,
-    hasValidToken,
-    user: user?.name || 'none',
-    finalAuth: isUserAuthenticated
-  });
+  // console.log('🛡️ ProtectedRoute Check:', {
+  //   path: location.pathname,
+  //   requireAuth,
+  //   isAuthenticated,
+  //   hasValidToken,
+  //   user: user?.name || 'none',
+  //   finalAuth: isUserAuthenticated
+  // });
 
   if (requireAuth && !isUserAuthenticated) {
     // Construct redirect URL with message and return path
@@ -57,7 +57,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     location.pathname === '/login' || 
     location.pathname === '/register'
   )) {
-    console.log('✅ Authenticated user accessing auth page, redirecting to dashboard');
+    // console.log('✅ Authenticated user accessing auth page, redirecting to dashboard');
     return <Navigate to="/dashboard" replace />;
   }
 

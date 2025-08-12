@@ -125,15 +125,15 @@ export default function FriendRequests() {
       console.error('Failed to start chat:', error);
       
       // Handle different error types
-      if (error.response?.status === 500) {
-        alert('⚠️ There was a server error. The chat feature is working but needs proper database models. Check the Django console for details.');
-      } else if (error.response?.status === 404) {
-        alert('❌ Chat service not found. The chat feature may not be available yet.');
-      } else if (error.response?.status === 403) {
-        alert('❌ You don\'t have permission to start a chat with this user.');
-      } else {
-        alert('❌ Failed to start chat. Please check your internet connection and try again.');
-      }
+      // if (error.response?.status === 500) {
+      //   alert('⚠️ There was a server error. The chat feature is working but needs proper database models. Check the Django console for details.');
+      // } else if (error.response?.status === 404) {
+      //   alert('❌ Chat service not found. The chat feature may not be available yet.');
+      // } else if (error.response?.status === 403) {
+      //   alert('❌ You don\'t have permission to start a chat with this user.');
+      // } else {
+      //   alert('❌ Failed to start chat. Please check your internet connection and try again.');
+      // }
     } finally {
       setStartingChatId(null);
     }

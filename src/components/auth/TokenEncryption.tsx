@@ -15,7 +15,7 @@ export class TokenEncryption {
       }
 
       const encrypted = CryptoJS.AES.encrypt(token, SECRET_KEY).toString();
-      console.log('🔒 JWT token encrypted successfully');
+      // console.log('🔒 JWT token encrypted successfully');
       return encrypted;
     } catch (error) {
       console.error('JWT encryption failed:', error);
@@ -40,7 +40,7 @@ export class TokenEncryption {
         throw new Error('Decrypted data is not a valid JWT token');
       }
       
-      console.log('🔓 JWT token decrypted successfully');
+      // console.log('🔓 JWT token decrypted successfully');
       return decrypted;
     } catch (error) {
       console.error('JWT decryption failed:', error);

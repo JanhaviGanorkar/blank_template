@@ -21,7 +21,7 @@ api.interceptors.request.use(
       // Validate JWT before using
       if (TokenEncryption.isValidJWT(token) && !TokenEncryption.isTokenExpired(token)) {
         config.headers.Authorization = `Bearer ${token}`;
-        console.log('🔑 Valid JWT access token added to request');
+        // console.log('🔑 Valid JWT access token added to request');
       } else {
         console.warn('⚠️ Invalid or expired JWT access token, clearing storage');
         SecureTokenStorage.clearAll();
@@ -33,11 +33,11 @@ api.interceptors.request.use(
       console.log('🔄 JWT access token should be refreshed soon');
     }
 
-    console.log('📤 API Request:', {
-      method: config.method?.toUpperCase(),
-      url: config.url,
-      hasAuth: !!token
-    });
+    // console.log('📤 API Request:', {
+    //   method: config.method?.toUpperCase(),
+    //   url: config.url,
+    //   hasAuth: !!token
+    // });
 
     return config;
   },
@@ -50,10 +50,10 @@ api.interceptors.request.use(
 // Response interceptor for handling JWT token refresh (matching your Django backend)
 api.interceptors.response.use(
   (response: AxiosResponse) => {
-    console.log('📥 API Response:', {
-      status: response.status,
-      url: response.config.url,
-    });
+    // console.log('📥 API Response:', {
+    //   status: response.status,
+    //   url: response.config.url,
+    // });
     return response;
   },
   async (error) => {
@@ -67,7 +67,7 @@ api.interceptors.response.use(
         const refreshToken = SecureTokenStorage.getRefreshToken();
         
         if (refreshToken && TokenEncryption.isValidJWT(refreshToken) && !TokenEncryption.isTokenExpired(refreshToken)) {
-          console.log('🔄 Refreshing JWT tokens...');
+          // console.log('🔄 Refreshing JWT tokens...');
           
           // Call refresh endpoint (matching your Django backend)
           const response = await axios.post('http://localhost:8000/api/auth/refresh/', {
@@ -81,7 +81,7 @@ api.interceptors.response.use(
             // Store new encrypted access token
             SecureTokenStorage.setAccessToken(newAccessToken);
             
-            console.log('✅ JWT access token refreshed successfully');
+            // console.log('✅ JWT access token refreshed successfully');
             
             // Retry original request with new token
             originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
@@ -126,18 +126,18 @@ export const authService = {
     // Store encrypted JWT tokens (matching your Django response structure)
     if (response.data.access && TokenEncryption.isValidJWT(response.data.access)) {
       SecureTokenStorage.setAccessToken(response.data.access);
-      console.log('🔒 JWT access token encrypted and stored');
+      // console.log('🔒 JWT access token encrypted and stored');
     }
     
     if (response.data.refresh && TokenEncryption.isValidJWT(response.data.refresh)) {
       SecureTokenStorage.setRefreshToken(response.data.refresh);
-      console.log('🔒 JWT refresh token encrypted and stored');
+      // console.log('🔒 JWT refresh token encrypted and stored');
     }
 
     // Store user data (matching your Django user structure)
     if (response.data.user) {
       SecureTokenStorage.setUserData(response.data.user);
-      console.log('🔒 User data encrypted and stored');
+      // console.log('🔒 User data encrypted and stored');
     }
     
     return response.data;
@@ -204,7 +204,7 @@ export const authService = {
 
   async getUserProfile() {
     const response = await api.get('/auth/profile/');
-    console.log(response.data)
+    // console.log(response.data)
     return response.data;
   },
 
@@ -248,7 +248,7 @@ export const authService = {
 
     if (response.data.access) {
       SecureTokenStorage.setAccessToken(response.data.access);
-      console.log('🔄 Access token refreshed manually');
+      // console.log('🔄 Access token refreshed manually');
     }
 
     return response.data;
@@ -259,7 +259,7 @@ export const authService = {
 export const chatService = {
   // Create or get personal chat between two users
   async createPersonalChat(receiverId: number) {
-    const response = await api.post('/chat/chats/create/', {
+    const response = await api.post('/Newchat/chats/create/', {
       receiver_id: receiverId
     });
     return response.data;
@@ -267,7 +267,7 @@ export const chatService = {
 
   // Send encrypted message to personal chat
   async sendPersonalMessage(chatId: string, content: string, messageType: string = 'text') {
-    const response = await api.post(`/chat/chats/${chatId}/send/`, {
+    const response = await api.post(`/Newchat/chats/${chatId}/send/`, {
       content,
       message_type: messageType
     });
@@ -276,19 +276,20 @@ export const chatService = {
 
   // Get messages from personal chat (decrypted automatically)
   async getPersonalChatMessages(chatId: string, limit: number = 50) {
-    const response = await api.get(`/chat/chats/${chatId}/messages/?limit=${limit}`);
+    const response = await api.get(`/Newchat/chats/${chatId}/messages/?limit=${limit}`);
     return response.data;
   },
 
   // Get all user's personal chats
   async getUserChats() {
-    const response = await api.get('/chat/chats/');
+    const response = await api.get('/Newchat/chats/');
+    console.log("NEw Chat api",response)
     return response.data;
   },
 
   // Mark messages in chat as read
   async markChatRead(chatId: string, messageIds?: number[]) {
-    const response = await api.patch(`/chat/chats/${chatId}/read/`, {
+    const response = await api.patch(`/Newchat/chats/${chatId}/read/`, {
       message_ids: messageIds || []
     });
     return response.data;
@@ -296,13 +297,13 @@ export const chatService = {
 
   // Get chat info
   async getChatInfo(chatId: string) {
-    const response = await api.get(`/chat/chats/${chatId}/info/`);
+    const response = await api.get(`/Newchat/chats/${chatId}/info/`);
     return response.data;
   },
 
   // Get unread message count
   async getUnreadCount() {
-    const response = await api.get('/chat/unread-count/');
+    const response = await api.get('/Newchat/unread-count/');
     return response.data;
   }
 };

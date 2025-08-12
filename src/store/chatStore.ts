@@ -1,34 +1,13 @@
 import { create } from 'zustand'
 import { chatService } from '../api/apiclient'
+// import { toast } from "sonner" // Assuming you have sonner installed and imported correctly
 
-// Chat Types
 export interface PersonalChat {
   id: string
-  user1: {
-    id: number
-    name: string
-    email: string
-    avatar: string | null
-  }
-  user2: {
-    id: number
-    name: string
-    email: string
-    avatar: string | null
-  }
-  other_user: {
-    id: number
-    name: string
-    email: string
-    avatar: string | null
-  }
-  participants: Array<{
-    id: number
-    name: string
-    email: string
-    avatar: string | null
-    is_self?: boolean
-  }>
+  user1: { id: number; name: string; email: string; avatar: string | null }
+  user2: { id: number; name: string; email: string; avatar: string | null }
+  other_user: { id: number; name: string; email: string; avatar: string | null }
+  participants: Array<{ id: number; name: string; email: string; avatar: string | null; is_self?: boolean }>
   created_at: string
   last_message_at: string
   last_message: {
@@ -60,16 +39,15 @@ export interface ChatMessage {
   }
 }
 
-// Chat Store interface
 interface ChatState {
   chats: PersonalChat[]
   currentChat: PersonalChat | null
   messages: { [chatId: string]: ChatMessage[] }
+  typingUsers: { [chatId: string]: string[] }
   isLoading: boolean
   error: string | null
   connectionStatus: 'DISCONNECTED' | 'CONNECTING' | 'CONNECTED' | 'RECONNECTING'
-  
-  // Actions
+
   loadUserChats: () => Promise<void>
   createChat: (receiverId: number) => Promise<PersonalChat | null>
   setCurrentChat: (chat: PersonalChat | null) => void
@@ -77,15 +55,17 @@ interface ChatState {
   sendMessage: (chatId: string, content: string, messageType?: string) => Promise<void>
   addMessage: (chatId: string, message: ChatMessage) => void
   markChatRead: (chatId: string) => Promise<void>
+  sendTyping: (chatId: string, isTyping: boolean) => void
+  getTypingUsers: (chatId: string) => string[]
   clearError: () => void
   setConnectionStatus: (status: ChatState['connectionStatus']) => void
 }
 
-// Chat Store
 export const useChatStore = create<ChatState>((set, get) => ({
   chats: [],
   currentChat: null,
   messages: {},
+  typingUsers: {},
   isLoading: false,
   error: null,
   connectionStatus: 'DISCONNECTED',
@@ -94,10 +74,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       set({ isLoading: true, error: null })
       const response = await chatService.getUserChats()
-      set({ chats: response.chats, isLoading: false })
+      // Fix: Access the 'results' property from the API response
+      set({ chats: response.results, isLoading: false })
     } catch (error) {
       console.error('❌ Error loading chats:', error)
       set({ error: 'Failed to load chats', isLoading: false })
+      // toast.error('Failed to load chats.')
     }
   },
 
@@ -105,10 +87,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       set({ isLoading: true, error: null })
       const response = await chatService.createPersonalChat(receiverId)
-      
+      // toast.success('Chat created successfully!')
+
       const currentChats = get().chats
       const existingIndex = currentChats.findIndex(chat => chat.id === response.chat.id)
-      
+
       if (existingIndex > -1) {
         const updatedChats = [...currentChats]
         updatedChats[existingIndex] = response.chat
@@ -116,11 +99,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
       } else {
         set({ chats: [response.chat, ...currentChats], isLoading: false })
       }
-      
+
       return response.chat
     } catch (error) {
       console.error('❌ Error creating chat:', error)
       set({ error: 'Failed to create chat', isLoading: false })
+      // toast.error('Failed to create chat.')
       return null
     }
   },
@@ -135,34 +119,33 @@ export const useChatStore = create<ChatState>((set, get) => ({
   loadChatMessages: async (chatId: string) => {
     try {
       const response = await chatService.getPersonalChatMessages(chatId)
-      set({ 
-        messages: { 
-          ...get().messages, 
-          [chatId]: response.messages 
-        } 
+      set({
+        messages: {
+          ...get().messages,
+          [chatId]: response.messages
+        }
       })
     } catch (error) {
       console.error('❌ Error loading messages:', error)
       set({ error: 'Failed to load messages' })
+      // toast.error('Failed to load messages.')
     }
   },
 
   sendMessage: async (chatId: string, content: string, messageType: string = 'text') => {
     try {
       await chatService.sendPersonalMessage(chatId, content, messageType)
-      // Message will be added via WebSocket or manual refresh
-      await get().loadChatMessages(chatId) // Refresh messages
+      await get().loadChatMessages(chatId)
     } catch (error) {
       console.error('❌ Error sending message:', error)
       set({ error: 'Failed to send message' })
+      // toast.error('Failed to send message.')
     }
   },
 
   addMessage: (chatId: string, message: ChatMessage) => {
     const currentMessages = get().messages[chatId] || []
-    const messageExists = currentMessages.some(msg => msg.id === message.id)
-    
-    if (!messageExists) {
+    if (!currentMessages.some(msg => msg.id === message.id)) {
       set({
         messages: {
           ...get().messages,
@@ -175,7 +158,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   markChatRead: async (chatId: string) => {
     try {
       await chatService.markChatRead(chatId)
-      // Update local state
       const currentMessages = get().messages[chatId] || []
       const updatedMessages = currentMessages.map(msg => ({
         ...msg,
@@ -185,29 +167,49 @@ export const useChatStore = create<ChatState>((set, get) => ({
           read_at: new Date().toISOString()
         }
       }))
-      
       set({
         messages: {
           ...get().messages,
           [chatId]: updatedMessages
         }
       })
+      // toast.success('Messages marked as read.')
     } catch (error) {
       console.error('❌ Error marking messages as read:', error)
+      // toast.error('Failed to mark messages as read.')
     }
   },
 
-  setConnectionStatus: (status: ChatState['connectionStatus']) => {
-    set({ connectionStatus: status })
+  sendTyping: (chatId: string, isTyping: boolean) => {
+    const currentTyping = get().typingUsers[chatId] || []
+    const myName = "You" 
+
+    if (isTyping && !currentTyping.includes(myName)) {
+      set({
+        typingUsers: {
+          ...get().typingUsers,
+          [chatId]: [...currentTyping, myName]
+        }
+      })
+    } else if (!isTyping) {
+      set({
+        typingUsers: {
+          ...get().typingUsers,
+          [chatId]: currentTyping.filter(user => user !== myName)
+        }
+      })
+    }
   },
+
+  getTypingUsers: (chatId: string) => get().typingUsers[chatId] || [],
+
+  setConnectionStatus: (status) => set({ connectionStatus: status }),
 
   clearError: () => set({ error: null })
 }))
 
-// Chat convenience hooks
 export const useChat = () => {
   const store = useChatStore()
-  
   return {
     ...store,
     getChatMessages: (chatId: string) => store.messages[chatId] || []

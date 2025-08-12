@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { useAuth, useChat } from '../store/store'
+import { useAuth } from '../store/store'
+import { useChat } from '../store/chatStore'
 import { useWebSocket } from '../services/websocket'
 import { Navigate, Link, useNavigate } from 'react-router-dom'
 import { Button } from "../components/ui/button"
@@ -21,6 +22,8 @@ export default function Dashboard() {
     messages,
     sendMessage 
   } = useChat()
+
+  console.log(chats)
   const { connect, disconnect, connectionStatus, isConnected } = useWebSocket()
   const navigate = useNavigate()
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false)
@@ -161,6 +164,7 @@ export default function Dashboard() {
 
   // Filter chats based on search
   const filteredChats = (chats || []).filter(chat =>
+    
     chat.other_user?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     chat.last_message?.content.toLowerCase().includes(searchQuery.toLowerCase())
   )

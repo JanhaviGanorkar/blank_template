@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useChat } from '../../context/ChatContext';
+import { useChatStore } from '../../store/chatStore';
 import { PersonalChat } from '../../types/chat';
 import './ChatList.css';
 
@@ -9,34 +9,42 @@ interface ChatListProps {
 }
 
 const ChatList: React.FC<ChatListProps> = ({ onChatSelect, selectedChatId }) => {
-  const { state, loadUserChats } = useChat();
+  const { chats,  error, loadUserChats } = useChatStore(); // ✅ Correct hook call
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     loadUserChats();
-  }, []);
+  }, [loadUserChats]);
 
   // Filter chats based on search query
-  const filteredChats = state.chats.filter(chat =>
-    chat.other_user?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    chat.last_message?.content.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredChats = chats.filter((chat) => {
+    const nameMatch = chat.other_user?.name
+      ?.toLowerCase()
+      .includes(searchQuery.toLowerCase());
 
-  const formatLastMessageTime = (timestamp: string) => {
+    const contentMatch = chat.last_message?.content
+      ?.toLowerCase()
+      .includes(searchQuery.toLowerCase());
+
+    return nameMatch || contentMatch;
+  });
+
+  const formatLastMessageTime = (timestamp?: string) => {
+    if (!timestamp) return '';
     try {
       const date = new Date(timestamp);
       const now = new Date();
       const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-      
+
       if (diffInMinutes < 1) return 'Just now';
       if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-      
+
       const diffInHours = Math.floor(diffInMinutes / 60);
       if (diffInHours < 24) return `${diffInHours}h ago`;
-      
+
       const diffInDays = Math.floor(diffInHours / 24);
       if (diffInDays < 7) return `${diffInDays}d ago`;
-      
+
       return date.toLocaleDateString();
     } catch {
       return '';
@@ -44,18 +52,19 @@ const ChatList: React.FC<ChatListProps> = ({ onChatSelect, selectedChatId }) => 
   };
 
   const truncateMessage = (message: string, maxLength: number = 50) => {
-    if (message.length <= maxLength) return message;
-    return message.substring(0, maxLength) + '...';
+    return message.length <= maxLength
+      ? message
+      : message.substring(0, maxLength) + '...';
   };
 
-  if (state.loading) {
-    return (
-      <div className="chat-list-loading">
-        <div className="loading-spinner"></div>
-        <p>Loading chats...</p>
-      </div>
-    );
-  }
+  // if (loading) {
+  //   return (
+  //     <div className="chat-list-loading">
+  //       <div className="loading-spinner"></div>
+  //       <p>Loading chats...</p>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="chat-list">
@@ -96,7 +105,7 @@ const ChatList: React.FC<ChatListProps> = ({ onChatSelect, selectedChatId }) => 
             )}
           </div>
         ) : (
-          filteredChats.map((chat) => (
+          filteredChats.map((chat: PersonalChat) => (
             <div
               key={chat.id}
               className={`chat-item ${selectedChatId === chat.id ? 'selected' : ''}`}
@@ -112,11 +121,9 @@ const ChatList: React.FC<ChatListProps> = ({ onChatSelect, selectedChatId }) => 
                   />
                 ) : (
                   <div className="avatar-placeholder">
-                    {chat.other_user?.name.charAt(0).toUpperCase()}
+                    {chat.other_user?.name?.charAt(0).toUpperCase()}
                   </div>
                 )}
-                {/* Online indicator (if user is online) */}
-                {/* <div className="online-indicator active"></div> */}
               </div>
 
               {/* Chat Info */}
@@ -124,21 +131,26 @@ const ChatList: React.FC<ChatListProps> = ({ onChatSelect, selectedChatId }) => 
                 <div className="chat-header">
                   <h4 className="chat-name">{chat.other_user?.name}</h4>
                   <span className="message-time">
-                    {chat.last_message && formatLastMessageTime(chat.last_message.timestamp)}
+                    {formatLastMessageTime(chat.last_message?.timestamp)}
                   </span>
                 </div>
 
                 <div className="chat-preview">
                   <div className="last-message">
                     {chat.last_message ? (
-                      <span className={chat.last_message.is_own_message ? 'own-message' : 'other-message'}>
+                      <span
+                        className={
+                          chat.last_message.is_own_message
+                            ? 'own-message'
+                            : 'other-message'
+                        }
+                      >
                         {chat.last_message.is_own_message && (
                           <span className="message-indicator">You: </span>
                         )}
-                        {chat.last_message.message_type === 'text' 
-                          ? truncateMessage(chat.last_message.content)
-                          : `📎 ${chat.last_message.message_type}`
-                        }
+                        {chat.last_message.message_type === 'text'
+                          ? truncateMessage(chat.last_message.content || '')
+                          : `📎 ${chat.last_message.message_type}`}
                       </span>
                     ) : (
                       <span className="no-messages">No messages yet</span>
@@ -159,9 +171,9 @@ const ChatList: React.FC<ChatListProps> = ({ onChatSelect, selectedChatId }) => 
       </div>
 
       {/* Error Message */}
-      {state.error && (
+      {error && (
         <div className="error-message">
-          <p>❌ {state.error}</p>
+          <p>❌ {error}</p>
           <button onClick={loadUserChats} className="retry-button">
             Retry
           </button>
