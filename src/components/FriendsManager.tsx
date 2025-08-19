@@ -227,7 +227,7 @@ export default function FriendsManager() {
                         </div>
                       </div>
                       <div className="flex space-x-2">
-                        <Button
+                        <Button 
                           variant="outline"
                           size="sm"
                           onClick={() => {/* Navigate to chat */}}
