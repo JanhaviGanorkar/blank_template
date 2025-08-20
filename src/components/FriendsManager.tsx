@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { friendService } from '../api/apiclient';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
-import { useAuth } from '../store/store';
+// import { useAuth } from '../store/store';
 
 interface FriendRequest {
   id: string;
@@ -45,7 +45,7 @@ interface SearchUser {
 }
 
 export default function FriendsManager() {
-  const { user } = useAuth();
+  // const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'search'>('friends');
   const [friends, setFriends] = useState<Friend[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);

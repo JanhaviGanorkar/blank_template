@@ -16,7 +16,7 @@ export default function Dashboard() {
     chats, 
     currentChat, 
     isLoading, 
-    error, 
+    // error, 
     loadUserChats, 
     setCurrentChat,
     messages,
@@ -24,7 +24,7 @@ export default function Dashboard() {
   } = useChat()
 
   console.log(chats)
-  const { connect, disconnect, connectionStatus, isConnected } = useWebSocket()
+  const { connect, disconnect, connectionStatus } = useWebSocket()
   const navigate = useNavigate()
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)

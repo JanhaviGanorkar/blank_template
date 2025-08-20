@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../store/store';
+// import { useAuth } from '../store/store';
 
 export default function Settings() {
-  const { user } = useAuth();
+  // const { user } = useAuth();
   const [settings, setSettings] = useState({
     notifications: {
       email: true,

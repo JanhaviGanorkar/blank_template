@@ -42,9 +42,8 @@ class WebSocketService {
       this.isManualClose = false
       
       // Update connection status only if changed
-      if (currentStatus !== 'CONNECTING') {
-        useAuthStore.getState().setConnectionStatus('CONNECTING')
-      }
+      // Set to CONNECTING only if not already CONNECTING or CONNECTED
+      useAuthStore.getState().setConnectionStatus('CONNECTING')
       
       console.log('🔌 Attempting WebSocket connection...')
       
