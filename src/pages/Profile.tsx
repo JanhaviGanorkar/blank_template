@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../store/store';
 import { authService } from '../api/apiclient';
@@ -12,17 +12,18 @@ interface UserProfile {
   location?: string;
   website?: string;
   is_email_verified: boolean;
-  date_joined: string;
-  last_login?: string;
+  last_seen: string;
+  created_at?: string;
   // Add other fields from your Django User model
 }
 
 export default function Profile() {
-  const { user, updateUser } = useAuth();
+  const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState('');
   const [profileData, setProfileData] = useState<UserProfile | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -31,6 +32,8 @@ export default function Profile() {
     location: '',
     website: ''
   });
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch user profile from Django backend
   useEffect(() => {
@@ -39,13 +42,10 @@ export default function Profile() {
         setLoading(true);
         setError('');
         
-        console.log('🔍 Fetching user profile from Django backend...');
         const response = await authService.getUserProfile();
         
-        console.log('✅ User profile fetched:', response);
         setProfileData(response);
         
-        // Update form data with fetched profile
         setFormData({
           name: response.name || '',
           email: response.email || '',
@@ -55,23 +55,11 @@ export default function Profile() {
         });
         
       } catch (error: any) {
-        console.error('❌ Failed to fetch user profile:', error);
         setError(
           error.response?.data?.detail || 
           error.response?.data?.message || 
           'Failed to load profile data'
         );
-        
-        // Fallback to stored user data
-        if (user) {
-          setFormData({
-            name: user.name || '',
-            email: user.email || '',
-            bio: '',
-            location: '',
-            website: ''
-          });
-        }
       } finally {
         setLoading(false);
       }
@@ -80,27 +68,45 @@ export default function Profile() {
     fetchUserProfile();
   }, [user]);
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setAvatarFile(file);
+    }
+  };
+
   const handleSave = async () => {
     try {
       setSaving(true);
       setError('');
+      setSuccess('');
       
-      console.log('💾 Updating user profile...');
-      
-      // TODO: Implement profile update API call
-      // const response = await authService.updateProfile(formData);
-      
-      // For now, just update local state
-      updateUser({
+      const updatePayload = {
         name: formData.name,
-        email: formData.email
-      });
+        location: null,
+        bio: null,
+        website: null,
+        avatar: avatarFile ? avatarFile : ''
+      };
       
-      console.log('✅ Profile updated successfully');
+      const response = await authService.editUserProfile(updatePayload);
+      
+      setProfileData(prev => ({
+        ...prev!,
+        ...response,
+        avatar: response.avatar || prev!.avatar
+      }));
+      
+      setSuccess('Profile updated successfully!');
       setIsEditing(false);
+      setAvatarFile(null);
       
     } catch (error: any) {
-      console.error('❌ Failed to update profile:', error);
       setError(
         error.response?.data?.detail || 
         error.response?.data?.message || 
@@ -113,7 +119,6 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white/95 backdrop-blur-sm border-b border-gray-200/50 sticky top-0 z-50 shadow-sm">
         <div className="px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between">
@@ -162,9 +167,7 @@ export default function Profile() {
         </div>
       </header>
 
-      {/* Main Content */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        {/* Loading State */}
         {loading && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
             <div className="flex items-center justify-center space-x-2">
@@ -177,7 +180,6 @@ export default function Profile() {
           </div>
         )}
 
-        {/* Error State */}
         {error && !loading && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-6 mb-6">
             <div className="flex items-center space-x-3">
@@ -198,26 +200,59 @@ export default function Profile() {
           </div>
         )}
 
-        {/* Profile Content */}
+        {success && !loading && (
+          <div className="bg-green-50 border border-green-200 rounded-xl p-6 mb-6">
+            <div className="flex items-center space-x-3">
+              <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <h3 className="text-green-800 font-medium">Success!</h3>
+                <p className="text-green-700 text-sm">{success}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {!loading && !error && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            {/* Profile Header */}
             <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-24 sm:h-32 relative">
               <div className="absolute -bottom-12 sm:-bottom-16 left-4 sm:left-8">
                 <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-2xl sm:text-4xl shadow-xl border-4 border-white">
-                  {profileData?.avatar ? (
+                  {isEditing ? (
+                    <div className="relative w-full h-full">
+                      <input
+                        type="file"
+                        id="avatarInput"
+                        ref={fileInputRef}
+                        onChange={handleAvatarChange}
+                        className="hidden"
+                        accept="image/*"
+                      />
+                      <label htmlFor="avatarInput" className="cursor-pointer">
+                        <img 
+                          src={avatarFile ? URL.createObjectURL(avatarFile) : profileData?.avatar || 'https://placehold.co/128x128/9d20c7/ffffff?text=U'}
+                          alt="Avatar" 
+                          className="w-full h-full rounded-full object-cover"
+                        />
+                         <div className="absolute inset-0 bg-black bg-opacity-40 rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.867-1.47a2 2 0 011.664-.89h1.866a2 2 0 011.664.89l.867 1.47c.21.375.498.665.864.89h.93a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                         </div>
+                      </label>
+                    </div>
+                  ) : (
                     <img 
-                      src={profileData.avatar} 
-                      alt={profileData.name} 
+                      src={profileData?.avatar || 'https://placehold.co/128x128/9d20c7/ffffff?text=U'}
+                      alt="Avatar" 
                       className="w-full h-full rounded-full object-cover"
                     />
-                  ) : (
-                    (profileData?.name?.charAt(0) || user?.name?.charAt(0) || 'U').toUpperCase()
                   )}
                 </div>
               </div>
               
-              {/* Email Verification Status */}
               <div className="absolute top-4 right-4">
                 {profileData?.is_email_verified ? (
                   <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -237,10 +272,8 @@ export default function Profile() {
               </div>
             </div>
 
-            {/* Profile Info */}
             <div className="pt-16 sm:pt-20 px-4 sm:px-8 pb-6 sm:pb-8">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
-                {/* Basic Information */}
                 <div className="space-y-6">
                   <h2 className="text-xl font-semibold text-gray-900 mb-4">Basic Information</h2>
                   
@@ -249,8 +282,9 @@ export default function Profile() {
                     {isEditing ? (
                       <input
                         type="text"
+                        name="name"
                         value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        onChange={handleInputChange}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     ) : (
@@ -265,9 +299,11 @@ export default function Profile() {
                     {isEditing ? (
                       <input
                         type="email"
+                        name="email"
                         value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        onChange={handleInputChange}
+                        disabled
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-200 cursor-not-allowed"
                       />
                     ) : (
                       <p className="text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">
@@ -280,8 +316,9 @@ export default function Profile() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Bio</label>
                     {isEditing ? (
                       <textarea
+                        name="bio"
                         value={formData.bio}
-                        onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                        onChange={handleInputChange}
                         rows={3}
                         placeholder="Tell us about yourself..."
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -294,7 +331,6 @@ export default function Profile() {
                   </div>
                 </div>
 
-                {/* Additional Information */}
                 <div className="space-y-6">
                   <h2 className="text-xl font-semibold text-gray-900 mb-4">Additional Information</h2>
                   
@@ -303,8 +339,9 @@ export default function Profile() {
                     {isEditing ? (
                       <input
                         type="text"
+                        name="location"
                         value={formData.location}
-                        onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                        onChange={handleInputChange}
                         placeholder="City, Country"
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
@@ -320,8 +357,9 @@ export default function Profile() {
                     {isEditing ? (
                       <input
                         type="url"
+                        name="website"
                         value={formData.website}
-                        onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                        onChange={handleInputChange}
                         placeholder="https://your-website.com"
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
@@ -346,21 +384,16 @@ export default function Profile() {
                     )}
                   </div>
 
-                  {/* Account Stats */}
                   <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 border border-blue-200">
                     <h3 className="font-semibold text-gray-900 mb-3">Account Information</h3>
                     <div className="grid grid-cols-1 gap-3 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-gray-600">User ID:</span>
-                        <span className="font-mono text-gray-900">#{profileData?.id || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
                         <span className="text-gray-600">Member Since:</span>
                         <span className="font-semibold text-gray-900">
-                          {profileData?.date_joined ? 
-                            new Date(profileData.date_joined).toLocaleDateString('en-US', { 
+                          {profileData?.created_at ? 
+                            new Date(profileData.created_at).toLocaleDateString('en-US', { 
                               year: 'numeric', 
-                              month: 'long', 
+                              month: 'numeric', 
                               day: 'numeric' 
                             }) : 'N/A'
                           }
@@ -368,17 +401,27 @@ export default function Profile() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Last Login:</span>
-                        <span className="font-semibold text-gray-900">
-                          {profileData?.last_login ? 
-                            new Date(profileData.last_login).toLocaleDateString('en-US', { 
-                              year: 'numeric', 
-                              month: 'short', 
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            }) : 'Never'
-                          }
-                        </span>
+                       <div>
+                          <div className='font-semibold text-gray-900'>
+                            {profileData?.last_seen 
+                              ? new Date(profileData.last_seen).toLocaleDateString('en-US', { 
+                                  year: 'numeric', 
+                                  month: 'numeric', 
+                                  day: 'numeric',
+                                }) 
+                              : 'Never'
+                            }
+                          </div>
+                          <div className='font-semibold text-gray-900'>
+                            {profileData?.last_seen 
+                              ? new Date(profileData.last_seen).toLocaleTimeString('en-US', { 
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                }) 
+                              : 'Never'
+                            }
+                          </div>
+                        </div>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Email Status:</span>
@@ -391,7 +434,6 @@ export default function Profile() {
                 </div>
               </div>
 
-              {/* Danger Zone */}
               <div className="mt-12 pt-8 border-t border-gray-200">
                 <h2 className="text-xl font-semibold text-red-600 mb-4">Danger Zone</h2>
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">

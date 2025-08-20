@@ -1,28 +1,122 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authService } from '../api/apiclient';
 
 const Register: React.FC = () => {
+  const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
-    password_confirm: ''
+    password_confirm: '',
+    avatar: null as File | string | null,
+    location: '',
+    bio: '',
+    website: ''
   });
+  const [previewAvatar, setPreviewAvatar] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  
+  // Clean up any created avatar preview URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      // Cleanup function
+      if (previewAvatar) {
+        URL.revokeObjectURL(previewAvatar);
+      }
+    };
+  }, [previewAvatar]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
   };
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        setError('Please select an image file');
+        return;
+      }
+      
+      // Check file size (limit to 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Image size should not exceed 5MB');
+        return;
+      }
+      
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file);
+      setPreviewAvatar(previewUrl);
+      
+      // Update formData
+      setFormData({
+        ...formData,
+        avatar: file
+      });
+      
+      setError('');
+    }
+  };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const removeAvatar = () => {
+    // Revoke object URL to prevent memory leaks
+    if (previewAvatar) {
+      URL.revokeObjectURL(previewAvatar);
+    }
+    
+    setPreviewAvatar(null);
+    setFormData({
+      ...formData,
+      avatar: null
+    });
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleNextStep = () => {
+    // Validate current step before proceeding
+    if (step === 1) {
+      if (!formData.name.trim() || !formData.email.trim() || 
+          !formData.password.trim() || !formData.password_confirm.trim()) {
+        setError('Please fill in all required fields');
+        return;
+      }
+      
+      if (formData.password !== formData.password_confirm) {
+        setError('Passwords do not match');
+        return;
+      }
+      
+      setError('');
+    }
+    
+    setStep(step + 1);
+  };
+
+  const handlePreviousStep = () => {
+    setStep(step - 1);
+  };
+  
+  const handleSkip = async () => {
+    // Skip profile info and submit with just required fields
+    await handleSubmit(undefined);
+  };
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setLoading(true);
     setError('');
     setSuccess('');
@@ -98,11 +192,20 @@ const Register: React.FC = () => {
               Sign Up
             </h1>
             <p className="text-gray-600 leading-relaxed">
-              Create your account to get started
+              {step === 1 ? 'Create your account to get started' : 'Complete your profile (Optional)'}
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Progress Indicator */}
+          <div className="flex items-center justify-center mb-8">
+            <div className="flex items-center space-x-2">
+              <div className={`w-3 h-3 rounded-full ${step === 1 ? 'bg-blue-600' : 'bg-blue-300'}`}></div>
+              <div className="w-10 h-1 bg-gray-200"></div>
+              <div className={`w-3 h-3 rounded-full ${step === 2 ? 'bg-blue-600' : 'bg-blue-300'}`}></div>
+            </div>
+          </div>
+
+          <form onSubmit={(e) => handleSubmit(e)} className="space-y-6">
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
                 <div className="flex">
@@ -135,108 +238,234 @@ const Register: React.FC = () => {
               </div>
             )}
             
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                Full Name
-              </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                className="form-input"
-                placeholder="Enter your full name"
-                required
-              />
-            </div>
-
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                className="form-input"
-                placeholder="Enter your email"
-                required
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Password
-              </label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                className="form-input"
-                placeholder="Create a password"
-                required
-                minLength={8}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password_confirm" className="block text-sm font-medium text-gray-700 mb-2">
-                Confirm Password
-              </label>
-              <input
-                type="password"
-                id="password_confirm"
-                name="password_confirm"
-                value={formData.password_confirm}
-                onChange={handleChange}
-                className="form-input"
-                placeholder="Confirm your password"
-                required
-                minLength={8}
-              />
-            </div>
-
-            <div className="flex items-center">
-              <input
-                id="terms"
-                type="checkbox"
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                required
-              />
-              <label htmlFor="terms" className="ml-2 text-sm text-gray-600">
-                I agree to the{' '}
-                <Link to="/terms" className="text-blue-600 hover:text-blue-700 font-medium">
-                  Terms of Service
-                </Link>{' '}
-                and{' '}
-                <Link to="/privacy" className="text-blue-600 hover:text-blue-700 font-medium">
-                  Privacy Policy
-                </Link>
-              </label>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary w-full relative"
-            >
-              {loading ? (
-                <div className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Creating account...
+            {step === 1 && (
+              <>
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    className="form-input"
+                    placeholder="Enter your full name"
+                    required
+                  />
                 </div>
-              ) : (
-                'Create Account'
-              )}
-            </button>
+
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className="form-input"
+                    placeholder="Enter your email"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    className="form-input"
+                    placeholder="Create a password"
+                    required
+                    minLength={8}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="password_confirm" className="block text-sm font-medium text-gray-700 mb-2">
+                    Confirm Password
+                  </label>
+                  <input
+                    type="password"
+                    id="password_confirm"
+                    name="password_confirm"
+                    value={formData.password_confirm}
+                    onChange={handleChange}
+                    className="form-input"
+                    placeholder="Confirm your password"
+                    required
+                    minLength={8}
+                  />
+                </div>
+
+                <div className="flex items-center">
+                  <input
+                    id="terms"
+                    type="checkbox"
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    required
+                  />
+                  <label htmlFor="terms" className="ml-2 text-sm text-gray-600">
+                    I agree to the{' '}
+                    <Link to="/terms" className="text-blue-600 hover:text-blue-700 font-medium">
+                      Terms of Service
+                    </Link>{' '}
+                    and{' '}
+                    <Link to="/privacy" className="text-blue-600 hover:text-blue-700 font-medium">
+                      Privacy Policy
+                    </Link>
+                  </label>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleNextStep}
+                  className="btn-primary w-full"
+                >
+                  Next: Profile Information
+                </button>
+              </>
+            )}
+
+            {step === 2 && (
+              <>
+                <div>
+                  <label htmlFor="avatar" className="block text-sm font-medium text-gray-700 mb-2">
+                    Profile Picture (Optional)
+                  </label>
+                  
+                  {previewAvatar ? (
+                    <div className="mb-3">
+                      <div className="relative inline-block">
+                        <img 
+                          src={previewAvatar} 
+                          alt="Avatar preview" 
+                          className="w-24 h-24 rounded-full object-cover border-2 border-gray-200" 
+                        />
+                        <button
+                          type="button"
+                          onClick={removeAvatar}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 text-xs"
+                          title="Remove image"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-1 flex items-center">
+                      <input
+                        type="file"
+                        id="avatar"
+                        name="avatar"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        className="hidden"
+                        accept="image/*"
+                      />
+                      <label
+                        htmlFor="avatar"
+                        className="cursor-pointer px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                      >
+                        Choose File
+                      </label>
+                      <span className="ml-3 text-sm text-gray-500">No file chosen</span>
+                    </div>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500">
+                    Upload a profile picture (Max: 5MB)
+                  </p>
+                </div>
+
+                <div>
+                  <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
+                    Location (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    id="location"
+                    name="location"
+                    value={formData.location}
+                    onChange={handleChange}
+                    className="form-input"
+                    placeholder="Enter your location"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="website" className="block text-sm font-medium text-gray-700 mb-2">
+                    Website (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    id="website"
+                    name="website"
+                    value={formData.website}
+                    onChange={handleChange}
+                    className="form-input"
+                    placeholder="Enter your website URL"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-2">
+                    Bio (Optional)
+                  </label>
+                  <textarea
+                    id="bio"
+                    name="bio"
+                    value={formData.bio}
+                    onChange={handleChange}
+                    className="form-input min-h-[100px]"
+                    placeholder="Tell us about yourself"
+                  />
+                </div>
+
+                <div className="flex space-x-3">
+                  <button
+                    type="button"
+                    onClick={handlePreviousStep}
+                    className="btn-secondary w-full"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="btn-primary w-full"
+                  >
+                    {loading ? (
+                      <div className="flex items-center justify-center">
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Creating account...
+                      </div>
+                    ) : (
+                      'Complete Registration'
+                    )}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSkip}
+                  className="text-blue-600 hover:text-blue-800 text-sm font-medium w-full text-center py-2"
+                >
+                  Skip for now
+                </button>
+              </>
+            )}
           </form>
 
           <div className="mt-8 text-center">

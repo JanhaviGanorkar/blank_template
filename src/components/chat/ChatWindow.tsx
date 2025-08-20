@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useChatStore } from '../../store/chatStore';
 
 interface ChatWindowProps {
@@ -17,6 +17,14 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat }) => {
 
   const { sendMessage, sendTyping } = useChatStore();
 
+  // 👇 Scroll reference
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  // 👇 Jab bhi messages change ho, scroll bottom par chala jaaye
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chat.messages]);
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -24,12 +32,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat }) => {
     if (!content) return;
 
     try {
-      await sendMessage(chat.id, content); // ✅ Pass chat.id
+      await sendMessage(chat.id, content);
       setMessageInput('');
 
-      // Stop typing indicator
       if (isTyping) {
-        sendTyping(chat.id, false); // ✅ Pass chat.id
+        sendTyping(chat.id, false);
         setIsTyping(false);
       }
 
@@ -43,16 +50,14 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat }) => {
     const value = e.target.value;
     setMessageInput(value);
 
-    // Handle typing indicator
     if (value.trim() && !isTyping) {
       setIsTyping(true);
-      sendTyping(chat.id, true); // ✅ Pass chat.id
+      sendTyping(chat.id, true);
     } else if (!value.trim() && isTyping) {
       setIsTyping(false);
-      sendTyping(chat.id, false); // ✅ Pass chat.id
+      sendTyping(chat.id, false);
     }
 
-    // Reset typing timeout
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
@@ -61,7 +66,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat }) => {
       typingTimeoutRef.current = setTimeout(() => {
         if (isTyping) {
           setIsTyping(false);
-          sendTyping(chat.id, false); // ✅ Pass chat.id
+          sendTyping(chat.id, false);
         }
       }, 2000);
     }
@@ -69,12 +74,14 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat }) => {
 
   return (
     <div className="chat-window">
-      <div className="messages">
-        {chat.messages.map((msg) => (
+      <div className="messages" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+        {[...chat.messages].map((msg) => (
           <div key={msg.id} className="message">
             <span className="sender">{msg.sender}:</span> {msg.content}
           </div>
         ))}
+        {/* 👇 Ye invisible div hamesha bottom par hoga */}
+        <div ref={messagesEndRef} />
       </div>
 
       <form onSubmit={handleSendMessage} className="message-input-form">

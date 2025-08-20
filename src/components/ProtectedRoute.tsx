@@ -14,7 +14,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requireAuth = true,
   redirectTo = '/login'
 }) => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const location = useLocation();
 
   // Check token validity on route access

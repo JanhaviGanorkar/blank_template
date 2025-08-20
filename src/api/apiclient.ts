@@ -142,14 +142,28 @@ export const authService = {
     
     return response.data;
   },
-
-  async register(userData: {
-    name: string;
-    email: string;
-    password: string;
-    password_confirm: string;
-  }) {
-    const response = await api.post('/auth/register/', userData);
+  async register(userData: { name: any; email: any; password: any; password_confirm: any; avatar: any; location: any; bio: any; website: any; }) {
+    const formData = new FormData();
+    
+    // Add all fields to FormData, regardless of whether they are optional or not
+    formData.append('name', userData.name);
+    formData.append('email', userData.email);
+    formData.append('password', userData.password);
+    formData.append('password_confirm', userData.password_confirm);
+    
+    // Check if avatar, location, bio, and website exist before appending
+    if (userData.avatar instanceof File) formData.append('avatar', userData.avatar);
+    if (userData.location) formData.append('location', userData.location);
+    if (userData.bio) formData.append('bio', userData.bio);
+    if (userData.website) formData.append('website', userData.website);
+    
+    // Always use axios.post with FormData and specify the correct headers
+    const response = await axios.post('http://localhost:8000/api/auth/register/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
     return response.data;
   },
 
@@ -203,11 +217,38 @@ export const authService = {
   },
 
   async getUserProfile() {
+  
     const response = await api.get('/auth/profile/');
     // console.log(response.data)
     return response.data;
   },
+ async editUserProfile(profileData: { name: string | Blob; location: null; bio: null; website: null; avatar: string | Blob; }) {
+    // FormData ka istemal karein taaki file aur dusra data ek saath bhej sakein
+    const formData = new FormData();
+    
+    // name field hamesha bhejenge
+    formData.append('name', profileData.name);
 
+    // Optional fields ko append karein
+    if (profileData.location !== null) formData.append('location', profileData.location || '');
+    if (profileData.bio !== null) formData.append('bio', profileData.bio || '');
+    if (profileData.website !== null) formData.append('website', profileData.website || '');
+    
+    // Sirf tabhi avatar append karein jab ek naya file select kiya gaya ho
+    if (profileData.avatar instanceof File) {
+      formData.append('avatar', profileData.avatar);
+    }
+
+    // PATCH request ka istemal karein profile update karne ke liye
+    // Content-Type ko multipart/form-data rakhe
+    const response = await api.patch('/auth/profile/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+
+    return response.data;
+  },
 
   // Get current user info from stored token
   getCurrentUser() {
